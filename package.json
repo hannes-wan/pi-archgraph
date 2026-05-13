@@ -1,0 +1,36 @@
+{
+  "name": "pi-archgraph",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Workspace-level architecture graph extension for Pi",
+  "main": "src/index.ts",
+  "pi": {
+    "extensions": [
+      "./src/index.ts"
+    ]
+  },
+  "dependencies": {
+    "@earendil-works/pi-coding-agent": "latest",
+    "@sinclair/typebox": "^0.32.22",
+    "better-sqlite3": "^11.0.0",
+    "ignore": "^7.0.5",
+    "proper-lockfile": "^4.1.2",
+    "tree-sitter-wasms": "^0.1.13",
+    "ts-morph": "^22.0.0",
+    "typescript": "^5.4.5",
+    "web-tree-sitter": "^0.25.10"
+  },
+  "scripts": {
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:ui": "vitest --ui"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.9",
+    "@types/node": "^20.12.7",
+    "@types/proper-lockfile": "^4.1.3",
+    "@vitest/coverage-v8": "^4.1.5",
+    "vitest": "^4.1.5"
+  }
+}
