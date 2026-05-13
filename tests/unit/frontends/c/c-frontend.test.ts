@@ -51,4 +51,22 @@ int area(Shape* shape) {
       edge.from_id === functionId
     )).toBe(true);
   });
+
+  it("skips malformed call edges for parenthesized callable expressions", async () => {
+    const filePath = "/tmp/numeric-limits.c";
+    const content = `
+#define WRAP(x) (x)
+
+int value(void);
+
+int area(void) {
+  return (WRAP(value))();
+}
+`;
+
+    const result = await frontend.parseFile(filePath, content);
+
+    expect(result.edges.some((edge) => edge.kind === "calls" && !edge.to_id)).toBe(false);
+    expect(result.edges.some((edge) => edge.kind === "reads" && !edge.to_id)).toBe(false);
+  });
 });

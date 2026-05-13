@@ -11,6 +11,7 @@ import { getArchgraphDir } from "../util/paths.js";
 import { createFrontendManager } from "../frontends/index.js";
 import { hashFile, hashString } from "../util/hashing.js";
 import { GraphNode, GraphEdge, GraphFile } from "../graph/schema.js";
+import { acquireLock } from "../graph/lock.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -27,7 +28,6 @@ export class WorkspaceIndexer {
     await this.init();
 
     const archgraphDir = getArchgraphDir(cwd);
-    const db = getDb(archgraphDir);
 
     let filePaths = filesToUpdate;
     if (!filePaths || filePaths.length === 0) {
@@ -83,12 +83,18 @@ export class WorkspaceIndexer {
     }
 
     if (allFiles.length > 0 || deletedFiles.length > 0) {
-      patchGraph(db, allFiles, allNodes, allEdges, deletedFiles);
-      this.updateCentralityAndFiles(db);
-      setGraphRevision(db, await this.buildRevision(cwd, allFiles.map((file) => file.hash ?? "")));
-    }
+      const releaseLock = await acquireLock(cwd);
+      const db = getDb(archgraphDir);
 
-    db.close();
+      try {
+        patchGraph(db, allFiles, allNodes, allEdges, deletedFiles);
+        this.updateCentralityAndFiles(db);
+        setGraphRevision(db, await this.buildRevision(cwd, allFiles.map((file) => file.hash ?? "")));
+      } finally {
+        db.close();
+        await releaseLock();
+      }
+    }
   }
 
   private updateCentralityAndFiles(db: ReturnType<typeof getDb>): void {

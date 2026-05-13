@@ -58,6 +58,25 @@ interface WeightedFileEdge {
   kind: string;
 }
 
+const THIRD_PARTY_PATH_SEGMENTS = [
+  "thirdparty",
+  "third-party",
+  "3rdparty",
+  "vendor",
+  "external",
+  "extern",
+  "deps",
+  "dependencies",
+  "submodules",
+  "generated",
+];
+
+function isThirdPartyPath(filePath: string | null | undefined): boolean {
+  if (!filePath) return false;
+  const normalized = filePath.replace(/\\/g, "/").toLowerCase();
+  return THIRD_PARTY_PATH_SEGMENTS.some((segment) => normalized.includes(`/${segment}/`));
+}
+
 export class GraphAnalyzer {
   readonly traversal: GraphTraversal;
 
@@ -81,9 +100,13 @@ export class GraphAnalyzer {
       ORDER BY count DESC
     `).all() as Array<{ language: string; count: number }>;
 
-    const centralNodes = this.rankNodes().slice(0, 10);
-    const criticalFiles = this.rankFiles().slice(0, 5);
-    const recommendations = centralNodes.filter((item) => this.isRecommendable(item.node)).slice(0, 5);
+    const rankedNodes = this.rankNodes();
+    const workspaceRankedNodes = rankedNodes.filter((item) => !isThirdPartyPath(item.node.file_path));
+    const rankedFiles = this.rankFiles();
+    const workspaceRankedFiles = rankedFiles.filter((file) => !isThirdPartyPath(file.path));
+    const centralNodes = (workspaceRankedNodes.length > 0 ? workspaceRankedNodes : rankedNodes).slice(0, 10);
+    const criticalFiles = (workspaceRankedFiles.length > 0 ? workspaceRankedFiles : rankedFiles).slice(0, 5);
+    const recommendations = rankedNodes.filter((item) => this.isRecommendable(item.node)).slice(0, 5);
     const domains = this.summarizeDomains();
 
     return {
@@ -136,6 +159,9 @@ export class GraphAnalyzer {
       domain: file.domain,
       subsystem: file.subsystem,
     })).sort((a, b) => {
+      const aScore = this.fileDecisionScore(a);
+      const bScore = this.fileDecisionScore(b);
+      if (bScore !== aScore) return bScore - aScore;
       if (b.fan_in !== a.fan_in) return b.fan_in - a.fan_in;
       return b.centrality - a.centrality;
     });
@@ -235,6 +261,22 @@ export class GraphAnalyzer {
     if (node.subsystem) score += 1;
     if (node.summary) score += 1;
     if (node.qualified_name) score += 0.5;
+    if (isThirdPartyPath(node.file_path)) score -= 100;
+    return score;
+  }
+
+  private fileDecisionScore(file: {
+    path: string;
+    fan_in: number;
+    fan_out: number;
+    centrality: number;
+    domain: string | null;
+    subsystem: string | null;
+  }): number {
+    let score = file.centrality;
+    if (file.domain) score += 2;
+    if (file.subsystem) score += 1;
+    if (isThirdPartyPath(file.path)) score -= 100;
     return score;
   }
 
@@ -242,6 +284,7 @@ export class GraphAnalyzer {
     if (!RECOMMENDABLE_NODE_KINDS.has(node.kind)) return false;
     if (!node.file_path) return false;
     if (/test|spec/i.test(node.file_path)) return false;
+    if (isThirdPartyPath(node.file_path)) return false;
     if (["new", "main", "default", "helper"].includes(node.name.toLowerCase())) return false;
     return true;
   }

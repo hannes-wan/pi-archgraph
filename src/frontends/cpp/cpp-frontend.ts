@@ -120,6 +120,8 @@ export class CppFrontend implements LanguageFrontend {
       if (!functionNode) return;
 
       const calleeText = normalizeSemanticTarget(functionNode.text);
+      if (!calleeText) return;
+
       const lowerCallee = calleeText.toLowerCase();
       const argsNode = node.childForFieldName("arguments");
       const primaryTarget = inferSemanticTarget(calleeText, argsNode?.text ?? calleeText);
@@ -137,6 +139,7 @@ export class CppFrontend implements LanguageFrontend {
       });
 
       const addSemanticEdge = (kind: GraphEdge["kind"], suffix: string, confidence: number) => {
+        if (!primaryTarget) return;
         addEdge({
           id: `${kind}:${filePath}:${ownerId}:${node.startPosition.row}:${node.startPosition.column}:${suffix}`,
           from_id: ownerId,

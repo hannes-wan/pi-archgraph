@@ -84,4 +84,24 @@ void boot(SessionCoordinator* coordinator, AuthService* auth) {
       edge.to_id.includes("connect")
     )).toBe(true);
   });
+
+  it("skips malformed call edges for parenthesized callable expressions", async () => {
+    const filePath = "/tmp/numeric-limits.cpp";
+    const content = `
+#include <limits>
+#include <cstdint>
+
+template <typename T>
+constexpr size_t num_possible_values() {
+  return static_cast<size_t>(
+    static_cast<intmax_t>((std::numeric_limits<T>::max)()) -
+    static_cast<intmax_t>((std::numeric_limits<T>::min)()) + 1);
+}
+`;
+
+    const result = await frontend.parseFile(filePath, content);
+
+    expect(result.edges.some((edge) => edge.kind === "calls" && !edge.to_id)).toBe(false);
+    expect(result.edges.some((edge) => edge.kind === "reads" && !edge.to_id)).toBe(false);
+  });
 });

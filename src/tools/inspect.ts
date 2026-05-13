@@ -236,7 +236,7 @@ export async function inspectSymbol(
   return getContextResult(cwd, matches[0], depth, format);
 }
 
-async function inferBestMatch(
+export async function inferBestMatch(
   cwd: string,
   matches: SearchResult[]
 ): Promise<SearchResult | null> {

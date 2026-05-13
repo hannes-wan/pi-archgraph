@@ -200,6 +200,12 @@ export class CFrontend implements LanguageFrontend {
         const functionNode = node.childForFieldName("function");
         if (functionNode) {
           const calleeText = normalizeSemanticTarget(functionNode.text);
+          if (!calleeText) {
+            for (const child of node.children) {
+              traverse(child, currentOwnerId);
+            }
+            return;
+          }
           const lowerCallee = calleeText.toLowerCase();
           const argsNode = node.childForFieldName("arguments");
           const primaryTarget = inferSemanticTarget(calleeText, argsNode?.text ?? calleeText);
@@ -216,6 +222,7 @@ export class CFrontend implements LanguageFrontend {
           });
 
           const addSemanticEdge = (kind: GraphEdge["kind"], suffix: string, confidence: number) => {
+            if (!primaryTarget) return;
             addEdge({
               id: `${kind}:${filePath}:${currentOwnerId}:${node.startPosition.row}:${node.startPosition.column}:${suffix}`,
               from_id: currentOwnerId,
